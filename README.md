@@ -8,7 +8,7 @@ This code is a python implementation of the DCMF algorithm proposed in
 Please NOTE that this repository was created for my personal use.  
 You should contact the authors to get the original code of the DCMF.
 
-## quick demo
+## Quick demo
 
 ```
 $ sh demo.sh
