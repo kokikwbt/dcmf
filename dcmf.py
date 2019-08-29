@@ -9,10 +9,11 @@ from scipy.linalg import pinv
 from sklearn.preprocessing import scale
 from tqdm import trange
 
+from contextual_matrix import get_contextual_matrix
 
 class DCMF(object):
     """ DCMF: Dynamic Contextual Matrix Factorization
-        for coevolving time series
+        for coevolving time series (In SDM 2015)
 
     Inputs
     ======
@@ -66,7 +67,7 @@ class DCMF(object):
         """
         """
 
-        for iteration in trange(max_iter):
+        for iteration in trange(max_iter, desc='EM'):
             """ E-step """
             zt, ztt, zt1t = self.backward(*self.forward())
             v, vv = self.compute_latent_context()
@@ -113,7 +114,7 @@ class DCMF(object):
         I = np.eye(self.L)
 
         for t in range(self.T):
-            # construct H(t) based on Eq. (3.6)
+            # Construct H(t) based on Eq. (3.6)
             ot = self.W[t, :]
             lt = sum(ot)
             It = np.eye(lt)
@@ -206,16 +207,29 @@ class DCMF(object):
         return (self.U @ self.Z.T).T
 
     def save(self, outdir):
-        pass
+        np.savetxt(outdir+'Xorg.csv', self.X, delimiter=',')
+        np.savetxt(outdir+'Xrec.csv', self.reconstruct(), delimiter=',')
+        np.savetxt(outdir+'S.txt', self.S)
+        np.savetxt(outdir+'U.txt', self.U)
+        np.savetxt(outdir+'V.txt', self.V)
+        np.savetxt(outdir+'Z.txt', self.Z)
 
 
 if __name__ == '__main__':
+    import warnings
+    warnings.filterwarnings('ignore')
+
+    outdir = './_out/example/'
 
     X = np.loadtxt('./_dat/86_11.amc.4d', delimiter=',')
     X = scale(X)
     N = X.shape[1]
-    S = np.random.rand(N, N)  # tmp
 
-    rank = 2
+    S = get_contextual_matrix(X, 0, method='cosine')
+    # S = np.random.rand(N, N)  # tmp
+
+    rank = 4
     model = DCMF(X, S, rank)
     model.em(max_iter=20)
+
+    model.save(outdir)
