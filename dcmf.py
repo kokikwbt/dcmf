@@ -7,9 +7,13 @@ import numpy as np
 import pandas as pd
 from scipy.linalg import pinv
 from sklearn.preprocessing import scale
+
+import matplotlib.pyplot as plt
+import seaborn as sns
 from tqdm import trange
 
 from contextual_matrix import get_contextual_matrix
+
 
 class DCMF(object):
     """ DCMF: Dynamic Contextual Matrix Factorization
@@ -159,6 +163,12 @@ class DCMF(object):
 
         return zt, ztt, zt1t
 
+    def compute_loglikelihood(self):
+        """ Evaluate the objective function (Eq. 3.5)
+        """
+        llh = 0
+        return llh
+
     def compute_latent_context(self):
         """ Eq. (3.12)
         """
@@ -193,6 +203,7 @@ class DCMF(object):
             Ht = self.U[ot, :]
             val += np.trace(Ht @ ztt[t] @ Ht.T)
             val += xt @ xt - 2 * xt @ (Ht @ zt[t])
+
         return val / self.W.sum()
 
     def update_contextual_covariance(self, vv):
@@ -206,7 +217,9 @@ class DCMF(object):
     def reconstruct(self):
         return (self.U @ self.Z.T).T
 
-    def save(self, outdir):
+    def save(self, outdir, visualize=True):
+        """ Save/Visualize results
+        """
         np.savetxt(outdir+'Xorg.csv', self.X, delimiter=',')
         np.savetxt(outdir+'Xrec.csv', self.reconstruct(), delimiter=',')
         np.savetxt(outdir+'S.txt', self.S)
@@ -214,10 +227,48 @@ class DCMF(object):
         np.savetxt(outdir+'V.txt', self.V)
         np.savetxt(outdir+'Z.txt', self.Z)
 
+        if visualize == True:
+            plt.figure(figsize=(16, 8))
+            plt.subplot(211)
+            plt.plot(self.X)
+            plt.title('Original sequence')
+            plt.xlabel('Time')
+            plt.ylabel('Value')
+            plt.subplot(212)
+            plt.plot(self.reconstruct())
+            plt.title(f'Reconstructed sequence (lmd= {self.lmd})')
+            plt.xlabel('Time')
+            plt.ylabel('Value')
+            plt.tight_layout()
+            plt.savefig(outdir+'result.png')
+            plt.close()
+
+            sns.heatmap(self.S)
+            plt.savefig(outdir+'S.png')
+            plt.xlabel('Dimensions')
+            plt.ylabel('Dimensions')
+            plt.close()
+            sns.heatmap(self.U)
+            plt.savefig(outdir+'U.png')
+            plt.xlabel('Latent dimensions')
+            plt.ylabel('Dimensions')
+            plt.close()
+            sns.heatmap(self.V)
+            plt.savefig(outdir+'V.png')
+            plt.xlabel('Latent dimensions')
+            plt.ylabel('Dimensions')
+            plt.close()
+            plt.plot(self.Z)
+            plt.savefig(outdir+'Z.png')
+            plt.xlabel('Time')
+            plt.ylabel('Value')
+            plt.close()
+
 
 if __name__ == '__main__':
     import warnings
     warnings.filterwarnings('ignore')
+    sns.set()
 
     outdir = './_out/example/'
 
@@ -226,10 +277,9 @@ if __name__ == '__main__':
     N = X.shape[1]
 
     S = get_contextual_matrix(X, 0, method='cosine')
-    # S = np.random.rand(N, N)  # tmp
 
-    rank = 4
-    model = DCMF(X, S, rank)
+    rank = 3
+    model = DCMF(X, S, rank, lmd=.1)
     model.em(max_iter=20)
 
     model.save(outdir)
